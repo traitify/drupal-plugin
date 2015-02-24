@@ -113,7 +113,7 @@ function traitify_description() {
   $traitify->host = "https://api.traitify.com";
   $traitify->version = "v1";
   $traitify->deck_id = "career-deck";
-  $public_key = "h8ishoh7qt5h77d6r1hvdrasul";
+  $public_key = "your public key";
 
   $result = db_query("SELECT * FROM {traitify} where user_id=:user_id", array(':user_id'=>$user->uid));
   $assessment_id = "";
