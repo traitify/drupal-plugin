@@ -108,12 +108,15 @@ function traitify_menu() {
  */
 function traitify_description() {
   global $user;
+
+  require_once('config.php');
+
   $traitify = new Traitify();
-  $traitify->private_key = "your key";
+  $traitify->private_key = $TraitifyConfig["secret_key"];
   $traitify->host = "https://api.traitify.com";
   $traitify->version = "v1";
-  $traitify->deck_id = "career-deck";
-  $public_key = "your public key";
+  $traitify->deck_id = $TraitifyConfig["deck_id"];
+  $public_key = $TraitifyConfig["public_key"];
 
   $result = db_query("SELECT * FROM {traitify} where user_id=:user_id", array(':user_id'=>$user->uid));
   $assessment_id = "";
