@@ -1,0 +1,163 @@
+<?php
+require_once('traitify.php');
+/**
+ * @file
+ * Module file for traitify_module.
+ */
+
+/**
+ * @defgroup traitify Example: Page
+ * @ingroup examples
+ * @{
+ * This example demonstrates how a module can display a page at a given URL.
+ *
+ * It's important to understand how the menu system works in order to
+ * implement your own pages. See the Menu Example module for some insight.
+ *
+ * @see menu_example
+ */
+
+
+/**
+ * Implements hook_permission().
+ *
+ * Since the access to our new custom pages will be granted based on
+ * special permissions, we need to define what those permissions are here.
+ * This ensures that they are available to enable on the user role
+ * administration pages.
+ */
+function traitify_permission() {
+  return array(
+    'access simple page' => array(
+      'title' => t('Access simple page'),
+      'description' => t('Allow users to access simple page'),
+    ),
+    'access arguments page' => array(
+      'title' => t('Access page with arguments'),
+      'description' => t('Allow users to access page with arguments'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ *
+ * Because hook_menu() registers URL paths for items defined by the function, it
+ * is necessary for modules that create pages. Each item can also specify a
+ * callback function for a given URL. The menu items returned here provide this
+ * information to the menu system.
+ *
+ * We will define some menus, and their paths will be interpreted as follows:
+ *
+ * If the user accesses http://example.com/?q=examples/traitify/simple,
+ * the menu system will first look for a menu item with that path. In this case
+ * it will find a match, and execute traitify_simple().
+ *
+ * If the user accesses http://example.com/?q=examples/traitify/arguments,
+ * the menu system will find no explicit match, and will fall back to the
+ * closest match, 'examples/traitify', executing traitify_description().
+ *
+ * If the user accesses
+ * http://example.com/?q=examples/traitify/arguments/1/2, the menu
+ * system will first look for examples/traitify/arguments/1/2. Not finding
+ * a match, it will look for examples/traitify/arguments/1/%. Again not
+ * finding a match, it will look for examples/traitify/arguments/%/2.
+ * Yet again not finding a match, it will look for
+ * examples/traitify/arguments/%/%. This time it finds a match, and so will
+ * execute traitify_arguments(1, 2). Since the parameters are passed to
+ * the function after the match, the function can do additional checking or
+ * make use of them before executing the callback function.
+ *
+ * @see hook_menu()
+ * @see menu_example
+ */
+function traitify_menu() {
+
+  // This is the minimum information you can provide for a menu item. This menu
+  // item will be created in the default menu, usually Navigation.
+  $items['traitify'] = array(
+    'title' => 'Traitify',
+    'page callback' => 'traitify_description',
+    'access callback' => TRUE,
+    'expanded' => TRUE,
+  );
+
+  // By using the MENU_CALLBACK type, we can register the callback for this
+  // path without the item appearing in the menu; the admin cannot enable the
+  // item in the menu, either.
+  //
+  // Notice that 'page arguments' is an array of numbers. These will be
+  // replaced with the corresponding parts of the menu path. In this case a 0
+  // would be replaced by 'example', a 1 by 'traitify', and a 2 by
+  // 'arguments.' 3 and 4 will be replaced by whatever the user provides.
+  // These will be passed as arguments to the traitify_arguments() function.
+  $items['examples/traitify/arguments/%/%'] = array(
+    'page callback' => 'traitify_arguments',
+    'page arguments' => array(3, 4),
+    'access arguments' => array('access arguments page'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Constructs a descriptive page.
+ *
+ * Our menu maps this function to the path 'examples/traitify'.
+ */
+function traitify_description() {
+  global $user;
+  $traitify = new Traitify();
+  $traitify->private_key = "your key";
+  $traitify->host = "https://api.traitify.com";
+  $traitify->version = "v1";
+  $traitify->deck_id = "career-deck";
+  $public_key = "h8ishoh7qt5h77d6r1hvdrasul";
+
+  $result = db_query("SELECT * FROM {traitify} where user_id=:user_id", array(':user_id'=>$user->uid));
+  $assessment_id = "";
+  $data = array();
+  if ($result) {
+    while ($row = $result->fetchAssoc()) {
+      if(is_array($row)){
+        $assessment_id = $row["assessment_id"];
+      }
+    }
+  }
+  if($assessment_id == ""){
+    $assessment_traitify = $traitify->create_assessment();
+    $nid = db_insert('traitify')->fields(array(
+      'user_id' => $user->uid,
+      'assessment_id' => $assessment_traitify->id,
+    ))->execute();
+    $assessment_id = $assessment_traitify->id;
+  }
+
+	if(reset($user->roles) != "anonymous user"){
+		$widget = '<script src="https://cdn.traitify.com/lib/v1.js"></script>';
+		$widget .= '<p>';
+		$widget .= '<div class="widget"></div>';
+		$widget .= '<div class="results"></div>';
+		$widget .= '<div class="personality-types"></div>';
+		$widget .= '<div class="personality-traits"></div>';
+		$widget .= '<script>Traitify.setPublicKey("'.$public_key.'");';
+		$widget .= 'Traitify.setVersion("v1");';
+		$widget .= 'Traitify.setHost("api.traitify.com");';
+		$widget .= 'Traitify.ui.load("'.$assessment_id.'",".widget", {results: {target: ".results"}, personalityTypes: {target: ".personality-types"}, personalityTraits: {target: ".personality-traits"}});';
+		$widget .= '</script></p>';
+	}else{
+	  $widget = '<p>Please Login</p>';
+	}
+  return array(
+    '#markup' =>
+    t($widget,
+      array(
+        '@simple_link' => url('examples/traitify/simple', array('absolute' => TRUE)),
+      )
+    ),
+  );
+}
+/**
+ * @} End of "defgroup traitify".
+ */
